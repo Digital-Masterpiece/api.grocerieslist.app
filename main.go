@@ -37,7 +37,26 @@ func endpoint(rw http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			if _, pErr := io.WriteString(rw, "There was an error parsing your request."); pErr != nil {
 				log.Fatal(pErr)
+				return
 			}
+		}
+
+		target := r.FormValue("target")
+
+		if target != "" {
+			if _, err := fmt.Fprintf(rw, "target query found: \"%s\"\n", target); err != nil {
+				log.Fatal(err)
+				return
+			}
+		} else {
+			if _, err := io.WriteString(rw, "Your designated target was empty."); err != nil {
+				log.Fatal(err)
+				return
+			}
+		}
+	default:
+		if _, err := io.WriteString(rw, "Only GET and POST methods are supported."); err != nil {
+			log.Fatal(err)
 		}
 	}
 }
