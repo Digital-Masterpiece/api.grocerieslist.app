@@ -47,11 +47,6 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 		target := r.FormValue("target")
 
 		if target != "" {
-			if _, err := fmt.Fprintf(w, "target query found: \"%s\"\n", target); err != nil {
-				http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
-				return
-			}
-
 			kuttResp, kErr := createKuttLink(target)
 			if kErr != nil {
 				http.Error(w, "400 Bad Request", http.StatusBadRequest)
