@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -61,20 +62,20 @@ func endpoint(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func createKuttLink(t string) {
+func createKuttLink(t string) (string, error) {
 	jsonStr := []byte(`{"domain": "s.grocerieslist.app", "target": "` + t + `}`)
 
 	client := http.Client{}
-	req, err := http.NewRequest("POST", "https://kutt.it/api/v2/links", bytes.NewBuffer(jsonStr))
+	req, nrErr := http.NewRequest("POST", "https://kutt.it/api/v2/links", bytes.NewBuffer(jsonStr))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-API-KEY", os.Getenv("KUTT_KEY"))
-	if err != nil {
-		log.Fatalln(err)
+	if nrErr != nil {
+		log.Fatalln(nrErr)
 	}
 
-	res, err := client.Do(req)
-	if err != nil {
-		log.Fatalln(err)
+	res, cErr := client.Do(req)
+	if cErr != nil {
+		log.Fatalln(cErr)
 	}
 
 	if res.StatusCode == 201 {
@@ -82,8 +83,8 @@ func createKuttLink(t string) {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		fmt.Println(string(body))
+		return string(body), nil
 	} else {
-		fmt.Println(res.StatusCode)
+		return "", errors.New("failed response from kutt.it")
 	}
 }
