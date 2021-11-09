@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 )
 
 // Example url to shorten.
@@ -17,7 +18,7 @@ func main() {
 	client := http.Client{}
 	req, err := http.NewRequest("POST", "https://kutt.it/api/v2/links", bytes.NewBuffer(jsonStr))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-API-KEY", "")
+	req.Header.Set("X-API-KEY", os.Getenv("KUTT_KEY"))
 	if err != nil {
 		log.Fatalln(err)
 	}
