@@ -24,6 +24,15 @@ func main() {
 }
 
 func endpoint(w http.ResponseWriter, r *http.Request) {
+	ao := os.Getenv("ALLOWED_ORIGIN")
+	w.Header().Set("Access-Control-Allow-Origin", ao)
+	if ao != "*" {
+		if r.Header.Get("Origin") != ao {
+			http.Error(w, "403 Forbidden: Invalid Origin", http.StatusForbidden)
+			return
+		}
+	}
+
 	if r.URL.Path != "/" {
 		http.Error(w, "404 Not Found", http.StatusNotFound)
 	}
