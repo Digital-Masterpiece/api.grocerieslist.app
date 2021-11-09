@@ -90,7 +90,9 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func createKuttLink(t string) (string, error) {
-	jsonStr := []byte(`{"domain": "s.grocerieslist.app", "target": "` + t + `"}`)
+	// Currently kutt.it doesn't support SSL for custom domains. This is obviously an issue with the .app TLD.
+	//jsonStr := []byte(`{"domain": "s.grocerieslist.app", "expire_in": "24 hours", "target": "` + t + `"}`)
+	jsonStr := []byte(`{"expire_in": "24 hours", "target": "` + t + `"}`)
 
 	client := http.Client{}
 	req, nrErr := http.NewRequest("POST", "https://kutt.it/api/v2/links", bytes.NewBuffer(jsonStr))
