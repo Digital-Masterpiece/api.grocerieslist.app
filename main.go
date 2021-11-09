@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -22,22 +23,23 @@ func main() {
 	}
 }
 
-func endpoint(rw http.ResponseWriter, r *http.Request) {
+func endpoint(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		http.Error(rw, "404 Not Found", http.StatusNotFound)
+		http.Error(w, "404 Not Found", http.StatusNotFound)
 	}
 
 	switch r.Method {
 	case "GET":
 		fmt.Println("GET request received.")
-		if _, err := io.WriteString(rw, "Send a POST request with the target URL you want shortened."); err != nil {
-			log.Fatal(err)
+		if _, err := io.WriteString(w, "Send a POST request with the target URL you want shortened."); err != nil {
+			http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+			return
 		}
 	case "POST":
 		fmt.Println("POST request received.")
 		if err := r.ParseForm(); err != nil {
-			if _, pErr := io.WriteString(rw, "There was an error parsing your request."); pErr != nil {
-				log.Fatal(pErr)
+			if _, pErr := io.WriteString(w, "There was an error parsing your request."); pErr != nil {
+				http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
 				return
 			}
 		}
@@ -45,19 +47,40 @@ func endpoint(rw http.ResponseWriter, r *http.Request) {
 		target := r.FormValue("target")
 
 		if target != "" {
-			if _, err := fmt.Fprintf(rw, "target query found: \"%s\"\n", target); err != nil {
-				log.Fatal(err)
+			if _, err := fmt.Fprintf(w, "target query found: \"%s\"\n", target); err != nil {
+				http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
 				return
 			}
+
+			kuttResp, kErr := createKuttLink(target)
+			if kErr != nil {
+				http.Error(w, "400 Bad Request", http.StatusBadRequest)
+				return
+			}
+
+			// Return a JSON response.
+			jsonResp, jErr := json.Marshal(kuttResp)
+			if jErr != nil {
+				log.Fatal(jErr)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			w.Header().Set("Content-Type", "application/json")
+			if _, wErr := w.Write(jsonResp); wErr != nil {
+				http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+			return
 		} else {
-			if _, err := io.WriteString(rw, "Your designated target was empty."); err != nil {
-				log.Fatal(err)
+			if _, err := io.WriteString(w, "Your designated target was empty."); err != nil {
+				http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
 				return
 			}
 		}
 	default:
-		if _, err := io.WriteString(rw, "Only GET and POST methods are supported."); err != nil {
-			log.Fatal(err)
+		if _, err := io.WriteString(w, "Only GET and POST methods are supported."); err != nil {
+			http.Error(w, "400 Bad Request", http.StatusBadRequest)
+			return
 		}
 	}
 }
@@ -70,18 +93,18 @@ func createKuttLink(t string) (string, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-API-KEY", os.Getenv("KUTT_KEY"))
 	if nrErr != nil {
-		log.Fatalln(nrErr)
+		return "", errors.New("failed to instantiate a new request to kutt.it")
 	}
 
 	res, cErr := client.Do(req)
 	if cErr != nil {
-		log.Fatalln(cErr)
+		return "", errors.New("failed to execute request to kutt.it")
 	}
 
 	if res.StatusCode == 201 {
 		body, err := ioutil.ReadAll(res.Body)
 		if err != nil {
-			log.Fatalln(err)
+			return "", errors.New("failed to read status code from kutt.it")
 		}
 		return string(body), nil
 	} else {
