@@ -2,13 +2,13 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 )
 
@@ -17,7 +17,7 @@ import (
 
 func main() {
 	http.HandleFunc("/", endpoint)
-	fmt.Println("Starting endpoint for grocerieslist.app short urls.")
+	fmt.Println("Listening on port 8080 for requests.")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
@@ -45,23 +45,22 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 		}
 
 		target := r.FormValue("target")
-
 		if target != "" {
+			_, err := url.ParseRequestURI(target)
+			if err != nil {
+				http.Error(w, "400 Bad Request: Malformed Target URL", http.StatusBadRequest)
+				return
+			}
+
 			kuttResp, kErr := createKuttLink(target)
 			if kErr != nil {
-				http.Error(w, "400 Bad Request", http.StatusBadRequest)
+				http.Error(w, "400 Bad Request: "+kErr.Error(), http.StatusBadRequest)
 				return
 			}
 
-			// Return a JSON response.
-			jsonResp, jErr := json.Marshal(kuttResp)
-			if jErr != nil {
-				log.Fatal(jErr)
-				return
-			}
-			w.WriteHeader(http.StatusCreated)
 			w.Header().Set("Content-Type", "application/json")
-			if _, wErr := w.Write(jsonResp); wErr != nil {
+			w.WriteHeader(http.StatusCreated)
+			if _, wErr := w.Write([]byte(kuttResp)); wErr != nil {
 				http.Error(w, "500 Internal Server Error", http.StatusInternalServerError)
 				return
 			}
@@ -81,7 +80,7 @@ func endpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func createKuttLink(t string) (string, error) {
-	jsonStr := []byte(`{"domain": "s.grocerieslist.app", "target": "` + t + `}`)
+	jsonStr := []byte(`{"domain": "s.grocerieslist.app", "target": "` + t + `"}`)
 
 	client := http.Client{}
 	req, nrErr := http.NewRequest("POST", "https://kutt.it/api/v2/links", bytes.NewBuffer(jsonStr))
@@ -97,8 +96,8 @@ func createKuttLink(t string) (string, error) {
 	}
 
 	if res.StatusCode == 201 {
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
+		body, ioErr := ioutil.ReadAll(res.Body)
+		if ioErr != nil {
 			return "", errors.New("failed to read status code from kutt.it")
 		}
 		return string(body), nil
