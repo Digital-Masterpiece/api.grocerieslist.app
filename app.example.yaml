@@ -1,4 +1,8 @@
 runtime: go116
+
 env_variables:
   KUTT_KEY: ""
-  ALLOWED_ORIGIN: ""
+  ALLOWED_ORIGIN: "*"
+
+automatic_scaling:
+  max_num_instances: 1
